@@ -88,7 +88,7 @@ struct SubHomeView: View {
                                 .frame(width: 24, height: 24)
                             }
                         }
-                        .frame(width: UIScreen.main.bounds.width - 32, height: 40, alignment: .trailing)
+                        .frame(width: UIScreen.main.bounds.width / 1.105, height: 30, alignment: .trailing)
                         LazyVGrid(columns: isOneColumnData ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum: UIScreen.main.bounds.width / 2.2))], spacing: 20){
                             if isDataRecentOrder { //최신순
                                 ForEach($datas.links.reversed()) { info in
@@ -106,7 +106,7 @@ struct SubHomeView: View {
                     NavigationLink(destination: MoveCategoryView(isShowMovingCategoryView: $isShowMovingCategory, categoryList: $scrapVM.categoryList.result, data: $detailData, currentCategoryId: $currentCategoryId).navigationBarBackButtonHidden(true).navigationBarBackButtonHidden(true), isActive: $isShowMovingCategory) { EmptyView() }
                         .opacity(0)
                 }//VStack
-            } refreshable: {    
+            } refreshable: {
                 if currentCategoryOrder == 0 { scrapVM.getAllData(userID: userVM.userIndex) }
                 else { scrapVM.getDataByCategory(userID: userVM.userIndex, categoryID: currentCategoryId) }
             }

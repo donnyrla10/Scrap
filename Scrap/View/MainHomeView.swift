@@ -26,12 +26,11 @@ struct MainHomeView: View {
                     .navigationBarTitle("", displayMode: .inline)
                     .toolbar{
                         ToolbarItem(placement: .navigationBarLeading){
-                            HStack(spacing: 2){
+                            HStack(spacing: -4){
                                 Button(action: {
-                                    if !isPresentDataModalSheet { // -> modal sheet가 열려있으면 카테고리뷰를 열 수 없다
-                                        withAnimation(.spring()){
-                                            self.isShowingCategorySideMenuView = true
-                                        }
+                                    withAnimation(.spring()){
+                                        self.isShowingCategorySideMenuView = true
+                                        scrapVM.getCategoryListData(userID: userVM.userIndex)
                                     }
                                 }) {
                                     ZStack {
@@ -43,8 +42,9 @@ struct MainHomeView: View {
                                     .frame(width: 36, height: 30)
                                 }
                                 Text(categoryTitle)
-                                    .fontWeight(.bold)
+                                    .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(Color("basic_text"))
+                                    .frame(width: UIScreen.main.bounds.width / 1.3, alignment: .leading)
                             }
                         }
                     }
@@ -53,9 +53,7 @@ struct MainHomeView: View {
                             VStack{
                                 NavigationLink(destination: MyPageView(userData: $scrapVM.user, isShowingMyPage: $isShowingMyPageView).navigationBarHidden(true).navigationBarBackButtonHidden(true), isActive: $isShowingMyPageView) {
                                     Button(action: {
-                                        if !isPresentDataModalSheet { //modal sheet가 열려있으면 마이페이지뷰를 열 수 없다
-                                            self.isShowingMyPageView.toggle()
-                                        }
+                                        self.isShowingMyPageView.toggle()
                                     }) {
                                         ZStack {
                                             Image(systemName: "person.circle")
@@ -63,7 +61,7 @@ struct MainHomeView: View {
                                                 .frame(width: 22, height: 22)
                                                 .foregroundColor(Color("basic_text"))
                                         }
-                                        .frame(width: 36, height: 30)
+                                        .frame(width: 24, height: 30)
                                     }
                                 }
                             }
@@ -73,6 +71,14 @@ struct MainHomeView: View {
             //Drawer
             SideMenuView(categoryList: $scrapVM.categoryList.result, isShowingCategoryView: $isShowingCategorySideMenuView, selectedCategoryId: $selectedCategoryID, selectedCategoryOrder: $selectedCategoryOrder)
                 .offset(x: isShowingCategorySideMenuView ? 0 : -UIScreen.main.bounds.width)
+            if isPresentDataModalSheet {
+                Color(.black)
+                    .opacity(0.2)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        isPresentDataModalSheet = false
+                    }
+            }
         }
         .onAppear{
             userVM.userIndex = UserDefaults(suiteName: "group.com.thk.Scrap")?.integer(forKey: "ID") == Optional(0) ?
@@ -91,6 +97,7 @@ struct MainHomeView: View {
                else if $0.translation.width > 100 {
                     withAnimation(.easeInOut) {
                         self.isShowingCategorySideMenuView = true
+                        scrapVM.getCategoryListData(userID: userVM.userIndex)
                     }
                 }
             }

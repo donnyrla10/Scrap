@@ -33,6 +33,7 @@ struct NewDataModel: Decodable{ //자료 저장 -> response 데이터로 받을 
 class ShareViewController: UIViewController{
     private var service = APIService()
     private var cancellable: AnyCancellable!
+    
     private var catID = 0
     private var userIndex = UserDefaults(suiteName: "group.com.thk.Scrap")?.integer(forKey: "ID")
     private var appURLString = "ScrapShareExtension://"
@@ -42,12 +43,12 @@ class ShareViewController: UIViewController{
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        guard userIndex != 0 else {
-            self.openMainApp()
-            self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
-            return
+        if userIndex != 0 {
+            configureNavigationBar()
+        }else {
+            configureNavigationBarForLogin()
         }
-        configureNavBar()
+        
         let delegate = CategoryIDDelegate()
         let childView = UIHostingController(rootView: ShareUIView(delegate: delegate))
         self.addChild(childView)
@@ -55,31 +56,18 @@ class ShareViewController: UIViewController{
         self.view.addSubview(childView.view)
         childView.didMove(toParent: self)
         self.cancellable = delegate.$categoryID.sink { catID in
-            print(catID)
             self.catID = catID
         }
     }
     
-    @objc func openURL(_ url: URL) -> Bool { //create custom OpenURL
-        var responder : UIResponder? = self
-        while responder != nil {
-            if let application = responder as? UIApplication {
-                return application.perform(#selector(openURL(_:)), with: url) != nil
-            }
-            responder = responder?.next
-        }
-        return false
-    }
-
-    private func openMainApp() { //open the containing app
-        self.extensionContext?.completeRequest(returningItems: nil, completionHandler: { _ in
-            guard let url = URL(string: self.appURLString) else { return }
-            _ = self.openURL(url)
-        })
+    private func configureNavigationBarForLogin() {
+        let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(cancelAction))
+        self.navigationItem.setRightBarButton(doneButton, animated: false)
+        self.navigationItem.rightBarButtonItem?.tintColor = .systemBlue
     }
     
     //set the title and the navigation items
-    private func configureNavBar(){
+    private func configureNavigationBar(){
         self.navigationItem.title = "자료 저장"
         let cancelButton = UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(cancelAction))
         self.navigationItem.setLeftBarButton(cancelButton, animated: false)
