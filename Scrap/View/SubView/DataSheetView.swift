@@ -7,24 +7,89 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
+
+enum DataNameField {
+    case rename
+}
 
 struct DataSheetView: View {
     @EnvironmentObject var scrapVM : ScrapViewModel
     @EnvironmentObject var userVM : UserViewModel
-    
+    @FocusState var focusState : DataNameField?
+
     @State private var isDeleteData = false
+    @State private var isEditingDataName = false
+    @State private var renamedDataName = ""
     
     @Binding var isShowMovingCategoryView : Bool
     @Binding var data : DataResponse.Datas
     @Binding var isPresentDataModalSheet : Bool
     @Binding var currentCategoryOrder : Int
     @Binding var currentCategoryId : Int
+    
+    private let screenWidth = UIScreen.main.bounds.width
+    private let screenHeight = UIScreen.main.bounds.height
 
     var body: some View {
         VStack(spacing: 24){
-            Text(data.title ?? "")
-                .frame(width: UIScreen.main.bounds.width - 40, alignment: .leading)
-                .foregroundColor(Color("basic_text"))
+            if isEditingDataName {
+                HStack{
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color("textfield_color"))
+                            .opacity(0.4)
+                            .frame(width: screenWidth / 1.25, height: 36, alignment: .leading)
+                        HStack(spacing: 13){
+                            TextField("자료 이름", text: $renamedDataName)
+                                .focused($focusState, equals: .rename)
+                                .font(.system(size: 18, weight: .regular))
+                                .frame(width: screenWidth / 1.5, alignment: .leading)
+                                .foregroundColor(Color("basic_text"))
+                            Button(action: {
+                                renamedDataName = "" //clear category name
+                            }) {
+                                ZStack{
+                                    Image(systemName: "xmark.circle")
+                                        .resizable()
+                                        .foregroundColor(.gray)
+                                        .frame(width: 14, height: 14)
+                                }
+                                .frame(width: 24, height: 36)
+                            }
+                        }
+                    }
+                    Button(action: {
+                        if !renamedDataName.isEmpty { //새로 쓴 이름이 비어있지 않을 경우 -> 이름 수정 저장
+                            scrapVM.renameData(dataID: data.linkId ?? 0, renamed: renamedDataName) //local method
+                            scrapVM.modifyDataName(dataID: data.linkId ?? 0, dataName: renamedDataName, userIdx: userVM.userIndex) //server
+                            self.isEditingDataName = false
+                            data.title = renamedDataName
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                scrapVM.getCategoryListData(userID: userVM.userIndex)
+                            }
+                        } else { //새로 쓴 이름이 비어있을 경우
+                            renamedDataName = data.title ?? "" //원래 카테고리 이름으로
+                            self.isEditingDataName = false
+                        }
+                    }) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color("list_color"))
+                                .frame(width: 36, height: 36, alignment: .leading)
+                            Image(systemName: "checkmark")
+                                .resizable()
+                                .frame(width: 12, height: 12)
+                                .foregroundColor(Color("blue_bold"))
+                        }
+                    }
+                }
+                .padding(.bottom, 10)
+            }else {
+                Text(data.title ?? "")
+                    .frame(width: screenWidth - 40, alignment: .leading)
+                    .foregroundColor(Color("basic_text"))
+            }
             Button(action: {
                 UIPasteboard.general.setValue(data.link ?? "", forPasteboardType: UTType.plainText.identifier)
                 isPresentDataModalSheet.toggle()
@@ -32,18 +97,41 @@ struct DataSheetView: View {
                 ZStack{
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color("list_color"))
-                        .frame(width: UIScreen.main.bounds.width - 40, height: 46, alignment: .leading)
+                        .frame(width: screenWidth - 40, height: 46, alignment: .leading)
                     Label("링크 복사", systemImage: "doc.on.doc")
                         .foregroundColor(Color("basic_text"))
-                        .frame(width: UIScreen.main.bounds.width - 40, height: 46, alignment: .leading)
+                        .frame(width: screenWidth - 40, height: 46, alignment: .leading)
                         .padding(.leading, 40)
                 }
             }
             ZStack{
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color("list_color"))
-                    .frame(width: UIScreen.main.bounds.width - 40, height: currentCategoryOrder == 0 ? 46 : 100, alignment: .leading)
-                VStack(spacing: 4){
+                    .frame(width: screenWidth - 40, height: currentCategoryOrder != 0 ? screenHeight / 4.7 : screenHeight / 6, alignment: .leading)
+                VStack(spacing: 2){
+                    Button(action: {
+                        self.isEditingDataName = true
+                    }) {
+                        //즐겨찾기에 추가 되어/안되어 있으면, 해제 / 추가
+                        Label("즐겨찾기 추가", systemImage: "heart")
+                            .foregroundColor(Color("basic_text"))
+                            .frame(width: screenWidth - 40, height: 42, alignment: .leading)
+                            .padding(.leading, 40)
+                    }
+                    Divider()
+                        .frame(width: screenWidth - 40)
+                        .padding(.vertical, currentCategoryOrder != 0 ? 0 : -2)
+                    Button(action: {
+                        isShowMovingCategoryView = true
+                        isPresentDataModalSheet.toggle()
+                    }) {
+                        Label("이름 수정", systemImage: "pencil")
+                            .foregroundColor(Color("basic_text"))
+                            .frame(width: screenWidth - 40, height: 40, alignment: .leading)
+                            .padding(.leading, 40)
+                    }
+                    Divider()
+                        .frame(width: screenWidth - 40)
                     if currentCategoryOrder != 0 {
                         Button(action: {
                             isShowMovingCategoryView = true
@@ -51,23 +139,26 @@ struct DataSheetView: View {
                         }) {
                             Label("카테고리 이동", systemImage: "arrow.turn.down.right")
                                 .foregroundColor(Color("basic_text"))
-                                .frame(width: UIScreen.main.bounds.width - 40, height: 40, alignment: .leading)
+                                .frame(width: screenWidth - 40, height: 40, alignment: .leading)
                                 .padding(.leading, 40)
                         }
                         Divider()
-                            .frame(width: UIScreen.main.bounds.width - 40)
+                            .frame(width: screenWidth - 40)
                     }
                     Button(action:{
                         self.isDeleteData = true
                     }){
                         Label("삭제", systemImage: "trash")
                             .foregroundColor(.red)
-                            .frame(width: UIScreen.main.bounds.width - 40, height: 40, alignment: .leading)
+                            .frame(width: screenWidth - 40, height: 40, alignment: .leading)
                             .padding(.leading, 40)
                     }
                 }
             }
             Spacer()
+        }
+        .onAppear {
+            self.renamedDataName = data.title ?? ""
         }
         .padding(.top, 48)
         .background(Color("sheet_background"))
@@ -95,8 +186,8 @@ struct DataSheetView_Previews: PreviewProvider {
             currentCategoryOrder: .constant(1),
             currentCategoryId: .constant(1)
         )
-            .environmentObject(ScrapViewModel())
-            .environmentObject(UserViewModel())
-            .preferredColorScheme(.dark)
+        .environmentObject(ScrapViewModel())
+        .environmentObject(UserViewModel())
+        .preferredColorScheme(.dark)
     }
 }
