@@ -1,31 +1,24 @@
 //
-//  DataSheetView.swift
+//  FavoriteSheetView.swift
 //  Scrap
 //
-//  Created by 김영선 on 2022/11/23.
+//  Created by 김영선 on 2023/03/27.
 //
 
 import SwiftUI
 import UniformTypeIdentifiers
-import UserNotifications
 
-enum DataNameField {
-    case rename
-}
-
-struct DataSheetView: View {
+struct FavoriteSheetView: View {
     @EnvironmentObject var scrapVM : ScrapViewModel
     @EnvironmentObject var userVM : UserViewModel
-    @FocusState var focusState : DataNameField?
 
     @State private var isDeleteData = false
     @State private var isEditingDataName = false
     @State private var renamedDataName = ""
+    @State private var isBookmarked = false
     
-    @Binding var isShowMovingCategoryView : Bool
     @Binding var data : DataResponse.Datas
-    @Binding var isPresentDataModalSheet : Bool
-    @Binding var currentCategoryOrder : Int
+    @Binding var isPresentFavoriteBottomSheet : Bool
     @Binding var currentCategoryId : Int
     
     private let screenWidth = UIScreen.main.bounds.width
@@ -42,7 +35,6 @@ struct DataSheetView: View {
                             .frame(width: screenWidth / 1.25, height: 36, alignment: .leading)
                         HStack(spacing: 13){
                             TextField("자료 이름", text: $renamedDataName)
-                                .focused($focusState, equals: .rename)
                                 .font(.system(size: 18, weight: .regular))
                                 .frame(width: screenWidth / 1.5, alignment: .leading)
                                 .foregroundColor(Color("basic_text"))
@@ -66,8 +58,9 @@ struct DataSheetView: View {
                             self.isEditingDataName = false
                             data.title = renamedDataName
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                scrapVM.getCategoryListData(userID: userVM.userIndex)
+                                scrapVM.getAllData(userID: userVM.userIndex)
                             }
+                            isPresentFavoriteBottomSheet = false
                         } else { //새로 쓴 이름이 비어있을 경우
                             renamedDataName = data.title ?? "" //원래 카테고리 이름으로
                             self.isEditingDataName = false
@@ -92,7 +85,7 @@ struct DataSheetView: View {
             }
             Button(action: {
                 UIPasteboard.general.setValue(data.link ?? "", forPasteboardType: UTType.plainText.identifier)
-                isPresentDataModalSheet.toggle()
+                isPresentFavoriteBottomSheet = false
             }) {
                 ZStack{
                     RoundedRectangle(cornerRadius: 10)
@@ -107,23 +100,26 @@ struct DataSheetView: View {
             ZStack{
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color("list_color"))
-                    .frame(width: screenWidth - 40, height: currentCategoryOrder > 0 ? screenHeight / 4.7 : screenHeight / 6, alignment: .leading)
+                    .frame(width: screenWidth - 40, height: screenHeight / 6, alignment: .leading)
                 VStack(spacing: 2){
                     Button(action: {
-                        self.isEditingDataName = true
+                        //즐겨찾기 기능
+                        self.isBookmarked = !isBookmarked
+                        scrapVM.modifyFavoritesData(userID: userVM.userIndex, linkID: data.linkId!) //서버통신
+                        scrapVM.bookmark(dataID: data.linkId!, isBookmark: isBookmarked)
+                        isPresentFavoriteBottomSheet = false
                     }) {
                         //즐겨찾기에 추가 되어/안되어 있으면, 해제 / 추가
-                        Label("즐겨찾기 추가", systemImage: "heart")
+                        Label(isBookmarked ? "즐겨찾기 해제" : "즐겨찾기 추가", systemImage: "heart")
                             .foregroundColor(Color("basic_text"))
                             .frame(width: screenWidth - 40, height: 42, alignment: .leading)
                             .padding(.leading, 40)
                     }
                     Divider()
                         .frame(width: screenWidth - 40)
-                        .padding(.vertical, currentCategoryOrder > 0 ? 0 : -2)
+                        .padding(.vertical, -2)
                     Button(action: {
-                        isShowMovingCategoryView = true
-                        isPresentDataModalSheet.toggle()
+                        self.isEditingDataName = true
                     }) {
                         Label("이름 수정", systemImage: "pencil")
                             .foregroundColor(Color("basic_text"))
@@ -132,19 +128,6 @@ struct DataSheetView: View {
                     }
                     Divider()
                         .frame(width: screenWidth - 40)
-                    if currentCategoryOrder > 0 {
-                        Button(action: {
-                            isShowMovingCategoryView = true
-                            isPresentDataModalSheet.toggle()
-                        }) {
-                            Label("카테고리 이동", systemImage: "arrow.turn.down.right")
-                                .foregroundColor(Color("basic_text"))
-                                .frame(width: screenWidth - 40, height: 40, alignment: .leading)
-                                .padding(.leading, 40)
-                        }
-                        Divider()
-                            .frame(width: screenWidth - 40)
-                    }
                     Button(action:{
                         self.isDeleteData = true
                     }){
@@ -159,6 +142,7 @@ struct DataSheetView: View {
         }
         .onAppear {
             self.renamedDataName = data.title ?? ""
+            self.isBookmarked = data.bookmark
         }
         .padding(.top, 48)
         .background(Color("sheet_background"))
@@ -170,24 +154,9 @@ struct DataSheetView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     scrapVM.getCategoryListData(userID: userVM.userIndex)
                 }
-                isPresentDataModalSheet = false
+                isPresentFavoriteBottomSheet = false
                 self.isDeleteData = false
             }
         })
-    }
-}
-
-struct DataSheetView_Previews: PreviewProvider {
-    static var previews: some View {
-        DataSheetView(
-            isShowMovingCategoryView: .constant(true),
-            data: .constant(DataResponse.Datas(linkId: 0, link: "https://www.apple.com", title: "명탐정코난재미있네유명한이름진짜독특하고 잘지은듯.. 유명한탐정유명한ㅋㅋㅋㅋ", domain: "naver.com", imgUrl: "")),
-            isPresentDataModalSheet: .constant(true),
-            currentCategoryOrder: .constant(1),
-            currentCategoryId: .constant(1)
-        )
-        .environmentObject(ScrapViewModel())
-        .environmentObject(UserViewModel())
-        .preferredColorScheme(.dark)
     }
 }

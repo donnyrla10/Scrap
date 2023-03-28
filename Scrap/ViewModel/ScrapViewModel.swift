@@ -15,10 +15,11 @@ class ScrapViewModel: ObservableObject{
     @Published var isLoading = false //서버 통신 상태 변수
     let service = APIService()
     var categoryID = 0
+    private let baseURL = "https://scrap-j2kb.shop"
     
     // MARK: - 카테고리 리스트 조회
     func getCategoryListData(userID: Int){
-        let url = URL(string: "https://scrap.hana-umc.shop/category/all?id=\(userID)")
+        let url = URL(string: "\(baseURL)/category/all?id=\(userID)")
         service.fetchData(CategoryResponse.self, baseUrl: url) { [unowned self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -32,14 +33,17 @@ class ScrapViewModel: ObservableObject{
         }
     }
     
+    // MARK: - 즐겨찾기 자료 리스트 추출
     private func getFavorites() {
-//        favoriteList = dataList.links.filter{ $0.favorites == true } //즐겨찾기인애들만 가져오기
+        favoriteList.links = dataList.links.filter{ $0.bookmark == true } //즐겨찾기인애들만 가져오기
+        print("즐겨찾기 리스트🥕🥕🥕🥕🥕🥕🥕🥕🥕")
+        print(favoriteList.links)
     }
     
     // MARK: - 전체 자료 조회
     func getAllData(userID: Int){
         isLoading = true
-        let url = URL(string: "https://scrap.hana-umc.shop/auth/data/all?id=\(userID)")
+        let url = URL(string: "\(baseURL)/auth/data/all?id=\(userID)")
         service.fetchData(DataResponse.self, baseUrl: url) { [unowned self] result in
             DispatchQueue.main.async {
                 self.isLoading = false //서버 통신 완료
@@ -49,6 +53,7 @@ class ScrapViewModel: ObservableObject{
                 case .success(let result):
                     self.dataList = result.result
                     print(self.dataList)
+                    self.getFavorites()
                 }
             }
         }
@@ -57,7 +62,7 @@ class ScrapViewModel: ObservableObject{
     // MARK: 카테고리별 자료 조회
     func getDataByCategory(userID: Int, categoryID: Int){
         isLoading = true
-        let url = URL(string: "https://scrap.hana-umc.shop/auth/data?id=\(userID)&category=\(categoryID)")
+        let url = URL(string: "\(baseURL)/auth/data?id=\(userID)&category=\(categoryID)")
         service.fetchData(DataResponse.self, baseUrl: url) { [unowned self] result in
             DispatchQueue.main.async {
                 self.isLoading = false //서버 통신 완료
@@ -74,7 +79,7 @@ class ScrapViewModel: ObservableObject{
     
     // MARK: 마이페이지 데이터 조회
     func getMyPageData(userID: Int){
-        let url = URL(string: "https://scrap.hana-umc.shop/auth/user/mypage?id=\(userID)")
+        let url = URL(string: "\(baseURL)/auth/user/mypage?id=\(userID)")
         service.fetchData(UserResponse.self, baseUrl: url) { [unowned self] result in
             DispatchQueue.main.async {
                 self.isLoading = false //서버 통신 완료
@@ -91,7 +96,7 @@ class ScrapViewModel: ObservableObject{
     
     // MARK: 새로운 카테고리 추가
     func addNewCategory(newCat: String, userID: Int) {
-        guard let url = URL(string: "https://scrap.hana-umc.shop/auth/category?id=\(userID)") else {
+        guard let url = URL(string: "\(baseURL)/auth/category?id=\(userID)") else {
             print("invalid url")
             return
         }
@@ -117,7 +122,7 @@ class ScrapViewModel: ObservableObject{
     
     // MARK: 카테고리 삭제
     func deleteCategory(categoryID: Int) {
-        guard let url = URL(string: "https://scrap.hana-umc.shop/auth/category?category=\(categoryID)") else {
+        guard let url = URL(string: "\(baseURL)/auth/category?category=\(categoryID)") else {
             print("invalid url")
             return
         }
@@ -139,7 +144,7 @@ class ScrapViewModel: ObservableObject{
     
     // MARK: 자료 삭제
     func deleteData(userID: Int, linkID: Int) {
-        guard let url = URL(string: "https://scrap.hana-umc.shop/auth/data/\(userID)?link_id=\(linkID)") else {
+        guard let url = URL(string: "\(baseURL)/auth/data/\(userID)?link_id=\(linkID)") else {
             print("invalid url")
             return
         }
@@ -161,7 +166,7 @@ class ScrapViewModel: ObservableObject{
     
     // MARK: 카테고리 이름 수정
     func modifyCategoryName(categoryID: Int, categoryName: String){
-        guard let url = URL(string: "https://scrap.hana-umc.shop/auth/category?category=\(categoryID)") else {
+        guard let url = URL(string: "\(baseURL)/auth/category?category=\(categoryID)") else {
             print("invalid url")
             return
         }
@@ -188,7 +193,7 @@ class ScrapViewModel: ObservableObject{
     
     // MARK: 카테고리 위치 이동
     func movingCategory(userID: Int, startIdx: Int, endIdx: Int){
-        guard let url = URL(string: "https://scrap.hana-umc.shop/auth/category/all?id=\(userID)") else {
+        guard let url = URL(string: "\(baseURL)/auth/category/all?id=\(userID)") else {
             print("invalid url")
             return
         }
@@ -217,7 +222,7 @@ class ScrapViewModel: ObservableObject{
     
     // MARK: 자료의 카테고리 이동
     func modifyCategoryOfData(userID: Int, linkID: Int, categoryId: Int) {
-        guard let url = URL(string: "https://scrap.hana-umc.shop/auth/data/\(userID)?link_id=\(linkID)") else {
+        guard let url = URL(string: "\(baseURL)/auth/data/\(userID)?link_id=\(linkID)") else {
             print("invalid url")
             return
         }
@@ -242,10 +247,9 @@ class ScrapViewModel: ObservableObject{
         }
     }
     
-    //auth/data/{user_id}?link_id=
-    //자료 이름 수정
+    // MARK: - 자료 이름 수정
     func modifyDataName(dataID: Int, dataName: String, userIdx: Int){
-        guard let url = URL(string: "https://scrap.hana-umc.shop/auth/data/\(userIdx)?link_id=\(dataID)") else {
+        guard let url = URL(string: "\(baseURL)/auth/data/\(userIdx)?link_id=\(dataID)") else {
             print("invalid url")
             return
         }
@@ -270,12 +274,35 @@ class ScrapViewModel: ObservableObject{
         }
     }
     
-    //자료 저장
+    // MARK: 즐겨찾기 추가 & 삭제
+    func modifyFavoritesData(userID: Int, linkID: Int) {
+        guard let url = URL(string: "\(baseURL)/auth/data/bookmark/\(userID)?link_id=\(linkID)") else {
+            print("invalid url")
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        service.requestTask(FavoriteDataModel.self, withRequest: request) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .failure(let error):
+                    print(error)
+                case .success(let result):
+                    print(result)
+                    break
+                }
+            }
+        }
+    }
+    
+    // MARK: - 자료 저장
     func addNewData(baseurl: String, title: String, imgUrl: String, catID: Int, userIdx: Int){
         print("⭐️⭐️⭐️⭐️⭐️⭐️자료 저장!!!!!⭐️⭐️⭐️⭐️⭐️⭐️")
         print(userIdx)
         print(catID)
-        guard let url = URL(string: "https://scrap.hana-umc.shop/data?id=\(userIdx)&category=\(catID)") else { //auth 추가해도 될 듯
+        guard let url = URL(string: "\(baseURL)/data?id=\(userIdx)&category=\(catID)") else { //auth 추가해도 될 듯
             print("invalid url")
             return
         }
@@ -378,6 +405,34 @@ class ScrapViewModel: ObservableObject{
             if dataList.links[i].linkId == dataId {
                 dataList.links[i].title = rname
                 return
+            }
+        }
+    }
+    
+    // MARK: - 즐겨찾기 추가 / 해제
+    func bookmark(dataID: Int, isBookmark: Bool) {
+        //favoriteList에 추가 / 해제
+        if isBookmark {
+            for i in 0..<dataList.links.count {
+                if dataList.links[i].linkId == dataID {
+                    dataList.links[i].bookmark = true
+                    favoriteList.links.append(dataList.links[i])
+                    break
+                }
+            }
+        }
+        else { // 즐겨찾기 해제
+            for i in 0..<dataList.links.count {
+                if dataList.links[i].linkId == dataID {
+                    dataList.links[i].bookmark = false
+                    break
+                }
+            }
+            for i in 0..<favoriteList.links.count {
+                if favoriteList.links[i].linkId == dataID {
+                    favoriteList.links.remove(at: i)
+                    return
+                }
             }
         }
     }

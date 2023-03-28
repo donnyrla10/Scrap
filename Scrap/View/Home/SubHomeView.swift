@@ -8,45 +8,20 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct RefreshableScrollView<Content: View> : View {
-    var content : Content
-    var refreshable: () -> Void
-    
-    init(content: @escaping () -> Content, refreshable: @escaping () -> Void) {
-        self.content = content()
-        self.refreshable = refreshable
-    }
-    
-    var body: some View {
-        List {
-            content
-                .listRowSeparatorTint(.clear)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-        }
-        .listStyle(.plain)
-        .refreshable {
-            refreshable()
-        }
-    }
-}
-
 struct SubHomeView: View {
     @EnvironmentObject var scrapVM : ScrapViewModel
     @EnvironmentObject var userVM : UserViewModel
     
-    @State private var detailData = DataResponse.Datas(linkId: 0, link: "", title: "", domain: "", imgUrl: "")
-    @State private var isShowMovingCategory = false     //카테고리 이동을 위해 view를 열었는지에 대한 상태 변수
     @State private var isOneColumnData = true           //1열인가?
     @State private var isDataRecentOrder = true         //최신순인가?
     
+    @Binding var detailData: DataResponse.Datas
+    @Binding var isShowMovingCategory: Bool             //자료의 카테고리 이동 onoff
     @Binding var datas : DataResponse.Result            //선택한 카테고리에 따른 자료 배열
-    @Binding var isPresentDataModalSheet : Bool         //카테고리 더보기 sheet가 열려있는지에 대한 상태 변수
+    @Binding var isPresentDataBottomSheet : Bool        //데이터 바텀 시트 onoff
     @Binding var currentCategoryId : Int                //현재 카테고리 id
     @Binding var currentCategoryOrder : Int             //현재 카테고리 order
-    
-    var newDataArray = [NewData]()
-    
+        
     var body: some View {
         if scrapVM.isLoading {
             ProgressView()
@@ -59,7 +34,7 @@ struct SubHomeView: View {
                     ScrollView(.vertical, showsIndicators: false){
                         HStack(spacing: 2){
                             Button(action: {
-                                if !isPresentDataModalSheet { //카테고리 더보기 sheet가 열려있으면 배경 버튼 비활성화
+                                if !isPresentDataBottomSheet { //카테고리 더보기 sheet가 열려있으면 배경 버튼 비활성화
                                     self.isOneColumnData.toggle()
                                 }
                             }){
@@ -75,7 +50,7 @@ struct SubHomeView: View {
                                 .font(.system(size: 16))
                                 .foregroundColor(.gray)
                             Button(action: {
-                                if !isPresentDataModalSheet { //카테고리더보기sheet가 열려있으면 배경 버튼 비활성화
+                                if !isPresentDataBottomSheet { //카테고리더보기sheet가 열려있으면 배경 버튼 비활성화
                                     self.isDataRecentOrder.toggle()
                                 }
                             }){
@@ -93,11 +68,11 @@ struct SubHomeView: View {
                         LazyVGrid(columns: isOneColumnData ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum: UIScreen.main.bounds.width / 2.2))], spacing: 20){
                             if isDataRecentOrder { //최신순
                                 ForEach($datas.links.reversed()) { info in
-                                    PageView(isPresentDataModalSheet: $isPresentDataModalSheet, data: info, detailData: $detailData, isOneColumnData: $isOneColumnData)
+                                    PageView(isPresentingBottomSheet: $isPresentDataBottomSheet, data: info, detailData: $detailData, isOneColumnData: $isOneColumnData)
                                 }
                             } else { //오래된순
                                 ForEach($datas.links) { info in
-                                    PageView(isPresentDataModalSheet: $isPresentDataModalSheet, data: info, detailData: $detailData, isOneColumnData: $isOneColumnData)
+                                    PageView(isPresentingBottomSheet: $isPresentDataBottomSheet, data: info, detailData: $detailData, isOneColumnData: $isOneColumnData)
                                 }
                             }
                         } //LAZYGRID
@@ -115,10 +90,9 @@ struct SubHomeView: View {
             .onChange(of: currentCategoryId, perform: { newValue in
                 if currentCategoryOrder == 0 { scrapVM.getAllData(userID: userVM.userIndex) }
                 else { scrapVM.getDataByCategory(userID: userVM.userIndex, categoryID: newValue) }
-            })
-            .sheet(isPresented: $isPresentDataModalSheet){
+            }).sheet(isPresented: $isPresentDataBottomSheet){
                 HalfSheet {
-                    DataSheetView(isShowMovingCategoryView: $isShowMovingCategory, data: $detailData, isPresentDataModalSheet: $isPresentDataModalSheet, currentCategoryOrder: $currentCategoryOrder, currentCategoryId: $currentCategoryId)
+                    DataSheetView(isShowMovingCategoryView: $isShowMovingCategory, data: $detailData, isPresentDataModalSheet: $isPresentDataBottomSheet, currentCategoryOrder: $currentCategoryOrder, currentCategoryId: $currentCategoryId)
                 }
                 .ignoresSafeArea()
             }
